@@ -1,0 +1,23 @@
+# Docker environment for the capability/odoo_write_n2 task — boots the
+# `a2-bench-odoo-erp:latest` image family (built from docker/odoo-erp, `FROM
+# a2-bench-ubuntu`, adding a live Odoo 19 + PostgreSQL 17 data plane). The task's
+# start() hook boots the services + resets the `odoo_write` DB to the baked
+# `AgentService` template on operator_b via `sudo -u odoo /opt/odoo/bin/odoo_ctl`.
+#
+# WHY A SEPARATE ENV FILE (not a second snapshot in docker.yaml): the config
+# loader collapses ALL docker snapshots in one environment yaml into a single
+# provider image (a2_run/orchestration/config_loader.py::_build_per_snapshot_env
+# rejects docker snapshots whose config differs; DockerProvider.acquire boots the
+# one `image` from that collapsed config). So a docker env yaml carries exactly
+# ONE image family. cpu-free-ubuntu (ubuntu-base) stays in the shared docker.yaml
+# for every other experiment; this file carries the odoo-erp image alone.
+#
+# Per-task cpus/memory come from the task card (vm.vcpus / vm.memory_gb).
+snapshots:
+  cpu-free-odoo:
+    provider: docker
+    image: odoo-erp
+    docker:
+      shm_size: 2g
+task_data_source: local:task-data
+output_path: local

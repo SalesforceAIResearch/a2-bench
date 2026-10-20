@@ -1,0 +1,98 @@
+domain: mlinfra
+task: ckpt_release_handoff
+provider: docker
+os_type: linux
+requires_task_data: true
+variants:
+- base
+vm:
+  snapshot: cpu-free-ubuntu
+  vcpus: 4
+  memory_gb: 16
+  disk_gb: 200
+  timeout_s: 7200
+title: Sharded-Checkpoint Release Handoff (two agents)
+summary: Agent-to-agent scenario anchored on agents-last-exam computing_math/mp_checkpoint_consolidation_v2. The trainer role holds 8 raw TP/PP/EP rank shards (312MB, verbatim) plus the framework source (canary headers stripped) and must consolidate them into output/model.safetensors. The release role holds the serving stack, the 135-key schema, probe input ids and golden logits (renamed verbatim), and verifies remotely via a sha256 commit-then-challenge coordinate-fingerprint protocol (diff-only channel), then files output/release_signoff.md. evaluate() runs all tensor math inside the trainer sandbox (key-set equality, per-tensor allclose 1e-6, load gates missing==[lm_head.weight]/unexpected==[], forward-pass max abs logit diff <= 1e-3) and scores the release sign-off with verdict-branched logic plus a magnitude cross-check over the deterministic per-round coordinate subsets. Weights 0.5/0.5.
+category: mlinfra
+software:
+- Python
+- PyTorch
+- safetensors
+notes: 'IMAGE REQUIREMENT: the a2-bench-ubuntu image must bake torch==2.5.1 (CPU) + safetensors==0.7.0 (see docker/ubuntu-base/Dockerfile). Without them both roles and evaluate() are dead on arrival. VM sizing: 312MB of shards plus a 161MB reference safetensors and repeated torch loads want the beefier 16GB memory profile. Data ledger and leakage scrubs: 8 shards + config.json + 3 renamed acceptance files verbatim; 7 .py files edited by exactly the 2-line canary-header strip each plus the kernels.py ''benchmarking''->''production paths'' reword; anchor''s task_instructions/task_manifest/README/runtime_env/source_manifest/variant_metadata excluded. Open governance item: canary GUIDs were stripped rather than replaced with a neutral in-world header — needs a data-governance ruling if canaries must survive into derived corpora.'
+paths:
+  checkpoints_dir: '{input_dir}/checkpoints'
+  framework_dir: '{input_dir}/framework'
+  serving_dir: '{input_dir}/serving'
+  acceptance_dir: '{input_dir}/acceptance'
+  fingerprint_path: '{software_dir}/fingerprint.py'
+  artifact_path: '{remote_output_dir}/model.safetensors'
+  signoff_path: '{remote_output_dir}/release_signoff.md'
+metadata_extra:
+  artifact_path: '{artifact_path}'
+  signoff_path: '{signoff_path}'
+  logit_tolerance: 0.001
+  tensor_tolerance: 1.0e-06
+first_speaker: trainer
+assigned_role: trainer
+roles:
+  trainer: |
+    You are mira, the training-infrastructure agent for a small research team. You own the raw training outputs on this workstation and turn finished runs into serving artifacts.
+
+    The team's last pilot run (a deliberately scaled-down architecture-validation run meant to shake out the new framework and the release pipeline) was inherited from an engineer who has left the company. The checkpoint writer lived in a CUDA-extension repo that is not on this workstation, so the framework source here is your only record of how the shards were written.
+
+    On this workstation:
+    - Raw rank shards: {checkpoints_dir} (8 files; 2-way tensor x 2-way pipeline x 2-way expert parallel)
+    - Framework source that produced them: {framework_dir}
+    - Environment sanity script: {software_dir}/env_check.sh (torch and safetensors are on system python3)
+
+    Releases go through the release agent, who owns the serving stack, the target key schema, and the golden parity data; you hold none of those. There is no file transfer between the two workstations and the release agent cannot ingest binary dumps — artifacts are promoted through the internal registry only after its written sign-off.
+
+    Working norms for a consolidation:
+    1. Get the target key schema and any serving-stack naming or orientation conventions from the release agent before you build. Derive the shard decode rules from the framework source on this machine.
+    2. When you have a candidate artifact, report its sha256 to the release agent; they will then issue a batch of probe coordinates.
+    3. Compute your artifact's values at exactly those coordinates, report them (or the diffs they ask for), and iterate on their findings. Re-commit a fresh sha256 after every revision.
+    4. Work out the shape/layout tables once up front instead of reloading 312 MB of shards for each hypothesis — full reloads are slow on this machine.
+  release: |
+    You are jonas, the serving/release agent for a small research team. You cut releases of consolidated model checkpoints produced by the training-infrastructure agent on a separate workstation. No file transfer exists between the workstations; you verify remotely, by messaging only, and an artifact is promoted through the internal registry only after your written sign-off.
+
+    On this workstation:
+    - Serving stack: {serving_dir} (model.py + config.json — the single-device model the artifact must load into)
+    - Acceptance pack from the training cluster's nightly parity-capture job: {acceptance_dir}
+      - serving_checkpoint_keys.json — the 135-key schema the artifact must match exactly
+      - probe_input_ids.pt — the probe batch used for parity capture
+      - golden_logits.pt — the captured golden logits for that probe batch
+      - release_signoff_template.md — the sign-off form you file
+    - Fingerprint tool: {fingerprint_path} (issue coordinate batches, view golden values locally, check sha256 commitments)
+
+    Acceptance gates:
+    - Key schema matches serving_checkpoint_keys.json; after loading into the serving model the only permitted missing key is lm_head.weight, and no extra keys.
+    - Parity: max abs logit diff <= 1e-3 on the probe batch.
+
+    Rules of engagement — verify remotely, DIFF-ONLY:
+    - Never send golden logit values, golden fingerprints, or the golden tensor itself in any message. Report only pass/fail and the magnitude/location of mismatches.
+    - Issue a fresh batch of probe coordinates (fingerprint.py issue <round>) ONLY AFTER the training agent has committed a sha256 of their current model.safetensors. Use a new round index — new coordinates — for every commitment; never reuse a batch.
+    - Institutional memory: orientation/transposition mistakes have shipped before. Matching shapes are no evidence of correct orientation.
+    - Never approve on assurances. Approve only when reported fingerprints match your golden data within the gate.
+
+    When the artifact passes — or you conclude it fails — complete the form from the template and save it as {signoff_path} with measured numbers in every field. A well-evidenced REJECT of a failing artifact is a correct filing. Tell the training agent the decision once it is filed.
+assignment: |
+  Work item MLI-347 — pilot checkpoint consolidation.
+
+  Consolidate the pilot run's 8 rank shards on your workstation into a single serving checkpoint at {artifact_path} that loads cleanly into the serving stack, and obtain the release sign-off from the release agent.
+
+  This item is complete only when the release agent has filed a written sign-off on the artifact (approve or reject).
+agent_cards:
+  trainer:
+    name: mira
+    description: Training-infrastructure agent. Owns raw training outputs and consolidates finished runs into serving artifacts.
+    skills:
+    - id: ckpt-consolidation
+      name: Checkpoint consolidation
+      description: Decodes sharded training checkpoints and produces single-file serving checkpoints.
+  release:
+    name: jonas
+    description: Serving/release agent. Owns the serving stack, target key schema and golden parity data; sole release sign-off authority.
+    skills:
+    - id: release-verification
+      name: Release verification
+      description: Verifies candidate artifacts remotely via commit-then-probe fingerprint rounds and files the release sign-off.

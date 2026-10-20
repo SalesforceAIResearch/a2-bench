@@ -1,0 +1,10 @@
+domain: legal
+task: practice_suite
+provider: docker
+os_type: linux
+requires_task_data: true
+scenario_registry: scenarios.jsonl
+scenario_index: scenario_index.json
+rubric_registry: rubrics.jsonl
+scenario_count: 224
+summary: Legal practice-area capability-discovery corpus (adapted from Harvey LAB, see README.md); each scenario is one variant.

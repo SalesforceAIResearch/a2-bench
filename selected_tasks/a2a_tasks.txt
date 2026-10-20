@@ -1,0 +1,7 @@
+# All a2a scenario tasks. Experiments share this file: the runner keeps
+# only the tasks whose declared roles match the experiment's `agents:`
+# binding and skips the rest (see Runner.enumerate_units).
+commerce/agentic_checkout
+dataops/h1_sales_warehouse
+mlinfra/ckpt_release_handoff
+procurement/cloud_commit_renewal

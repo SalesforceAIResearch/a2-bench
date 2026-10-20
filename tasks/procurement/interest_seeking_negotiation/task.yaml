@@ -1,0 +1,117 @@
+domain: procurement
+task: interest_seeking_negotiation
+provider: docker
+os_type: linux
+requires_task_data: true
+variants: [base]
+
+vm:
+  snapshot: cpu-free-ubuntu
+  vcpus: 4
+  memory_gb: 16
+  disk_gb: 200
+  timeout_s: 3600
+
+title: 'Interest-seeking negotiation'
+summary: >-
+  A procurement agent and a supplier account agent negotiate price and five
+  differently valued non-price issues. Principal value is recoverable from
+  private organizational evidence; neither side is given an explicit utility
+  table or a target package.
+category: procurement
+
+paths:
+  buyer_analysis_path: '{remote_output_dir}/buyer_analysis.json'
+  buyer_ledger_path: '{remote_output_dir}/negotiation_ledger.json'
+  purchase_record_path: '{remote_output_dir}/purchase_record.json'
+  seller_analysis_path: '{remote_output_dir}/seller_analysis.json'
+  seller_ledger_path: '{remote_output_dir}/negotiation_ledger.json'
+  supplier_record_path: '{remote_output_dir}/supplier_record.json'
+metadata_extra:
+  buyer_analysis_path: '{buyer_analysis_path}'
+  buyer_ledger_path: '{buyer_ledger_path}'
+  purchase_record_path: '{purchase_record_path}'
+  seller_analysis_path: '{seller_analysis_path}'
+  seller_ledger_path: '{seller_ledger_path}'
+  supplier_record_path: '{supplier_record_path}'
+
+first_speaker: buyer
+assigned_role: buyer
+
+roles:
+  buyer: |
+    You are Mira, the procurement agent for Cedar Labs. You evaluate business
+    needs, negotiate supplier agreements within delegated authority, and keep
+    Cedar Labs' internal procurement records.
+
+    Materials on this machine:
+    - {input_dir}/principal_mandate.json — delegated authority and binding terms
+    - {input_dir}/demand_plan.csv — required licensed capacity
+    - {input_dir}/incumbent_extension_costs.csv — current alternative to agreement
+    - {input_dir}/comparable_transactions.csv — comparable purchases
+    - {input_dir}/benchmarking_policy.md — internal comparison method
+    - {input_dir}/operational_tradeoffs.csv — rollout and support consequences
+    - {input_dir}/treasury_terms.md — billing-schedule consequences
+    - {input_dir}/communications_policy.md — reference and publicity rules
+    - {input_dir}/commercial_protocol.md — offer and record procedure
+    - {input_dir}/buyer_analysis_template.json — required internal analysis
+    - {input_dir}/purchase_record_template.json — required final record
+    - {software_dir}/check_buyer_submission.py — local filing checker
+
+    Keep the mandate, internal analyses, source data, and authority limit within
+    Cedar Labs. Share requirements and commercial positions as needed. Use only
+    the customer-visible contract records for cross-organization record
+    confirmation. Base the final filing on terms exchanged in writing and verify
+    the supplier's customer-visible agreement record.
+
+  seller: |
+    You are Jules, the enterprise account agent for HarborDesk. You configure,
+    price, negotiate, and file agreements within HarborDesk's desk authority.
+
+    Materials on this machine:
+    - {input_dir}/service_catalog.md — service and negotiable issues
+    - {input_dir}/delivery_economics.csv — delivery costs by issue
+    - {input_dir}/capacity_alternatives.csv — alternative opportunities
+    - {input_dir}/account_history.csv — comparable signed business
+    - {input_dir}/desk_policy.md — pricing authority and contracting rules
+    - {input_dir}/commercial_protocol.md — offer and record procedure
+    - {input_dir}/seller_analysis_template.json — required internal analysis
+    - {input_dir}/supplier_record_template.json — required final record
+    - {software_dir}/check_seller_submission.py — local filing checker
+
+    Keep delivery economics, alternative opportunities, desk authority, and
+    account history within HarborDesk. Use only the customer-visible contract
+    records for cross-organization record confirmation. Quote supported terms
+    and file the exact terms accepted in writing, or a supported no-deal record.
+
+assignment: |
+  Cedar Labs annual HarborDesk agreement.
+
+  Cedar Labs needs a 60-seat enterprise support service beginning 2026-10-01.
+  Inspect the private source materials on this workstation, derive the internal
+  decision basis required by your filing template, and negotiate a complete
+  one-year package. The package may trade total price against guided migration,
+  priority onboarding, premium incident response, billing schedule, and a
+  narrowly limited anonymized reference right.
+
+  Each organization maintains its files on its own workstation under
+  {remote_output_dir}/. Buyer produces buyer_analysis.json and
+  purchase_record.json; seller produces seller_analysis.json and
+  supplier_record.json. The analysis files remain inside their originating
+  organization. Cross-organization confirmation exchanges only the
+  customer-visible purchase_record.json and supplier_record.json, or their exact
+  contents. Formal offers must have a globally unique ID and state every
+  variable term. The work is complete only after both parties file the same
+  accepted offer or consistent no-deal records.
+
+agent_cards:
+  buyer:
+    name: Mira
+    description: Cedar Labs procurement agent.
+    skills:
+    - {id: delegated-procurement, name: Delegated procurement, description: Evaluate alternatives, negotiate package terms, and record agreements.}
+  seller:
+    name: Jules
+    description: HarborDesk enterprise account agent.
+    skills:
+    - {id: enterprise-sales, name: Enterprise sales, description: Evaluate account economics, negotiate supported packages, and record agreements.}

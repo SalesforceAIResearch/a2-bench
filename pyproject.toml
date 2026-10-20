@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "a2-bench"
+version = "0.1.0"
+description = "Agent-to-agent benchmark framework. Local-Docker-only strip of agents-last-exam."
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "pydantic>=2.0",
+    "pyyaml>=6",
+    "huggingface-hub>=0.28,<2",  # fetch/publish task-data (scripts/{fetch,upload}_task_data)
+]
+
+[project.optional-dependencies]
+# Model-backed metrics (`metrics/`). Kept optional so a plain run — which needs
+# no judge — doesn't pull the SDK; deterministic metrics work without it.
+# The judge's default provider is `direct` (ANTHROPIC_API_KEY); routing it at
+# vertex/bedrock needs that provider's auth deps, so both are pulled here —
+# the host's `secret/.env` decides which one is actually used.
+metrics = [
+    "anthropic[bedrock,vertex]>=0.69",
+]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+]
+
+[tool.hatch.build.targets.wheel]
+# Three top-level packages: framework (`a2_run/`), task library (`tasks/`), and
+# offline metrics (`metrics/`). All PEP 420 namespace packages — no __init__.py
+# at their roots.
+packages = ["a2_run", "tasks", "metrics"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

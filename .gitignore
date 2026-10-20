@@ -1,0 +1,40 @@
+__pycache__/
+*.pyc
+*.pyo
+node_modules/
+
+.venv/
+.uv/
+uv.lock
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+
+.logs*
+*.env
+secret/*.json
+secret/*.pem
+# Host-staged task data (docker.yaml: task_data_source: local:task-data).
+# Real/large task data is fetched, not committed — so ignore /task-data/*
+# but KEEP the tiny demo/ fixtures so the demo smoke tests run out of the box.
+# Anchored so it does NOT match the a2_run/environments/task_data code package.
+/task-data/
+# Private experiment matrices and run yamls — not shipped.
+/run_exp_yamls/
+/exp_*.yaml
+# Development-oriented tests and design notes — deliberately not shipped.
+tests
+docs
+analysis/
+exp_yamls
+# Only the task-data fetcher ships; other scripts are dev-only.
+/scripts/*
+!/scripts/fetch_task_data.sh

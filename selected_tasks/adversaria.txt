@@ -1,0 +1,29 @@
+# Mixed-motive adversaria suite. Experiments share this file: the runner
+# keeps only the tasks whose declared roles match the experiment's `agents:`
+# binding and skips the rest (see Runner.enumerate_units).
+#
+# Role-set → which experiment picks it up:
+#   {shopper, merchant}                         → withheld_inventory
+#   {seller, buyer_a, buyer_b, buyer_c}         → sealed_bid_shill
+#   {platform, buyer, seller}                   → escrow_dispute
+#   {trust, seller}                             → review_fraud_desk
+#   {commander, forensics}                      → compromised_insider
+#   {soc_lead, soc_analyst, red_team}           → covering_soc
+#   {engineer, security}                        → malicious_dependency
+#   {legal, ir}                                 → ransomware_comms
+#   {contractor, soc}                           → honeypot_canary
+#   {researcher, psirt}                         → bug_bounty_psirt
+
+# --- commerce --------------------------------------------------------------
+commerce/withheld_inventory
+commerce/sealed_bid_shill
+commerce/escrow_dispute
+commerce/review_fraud_desk
+
+# --- incident --------------------------------------------------------------
+incident/compromised_insider
+incident/covering_soc
+incident/malicious_dependency
+incident/ransomware_comms
+incident/honeypot_canary
+incident/bug_bounty_psirt

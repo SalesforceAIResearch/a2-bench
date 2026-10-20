@@ -1,0 +1,3 @@
+# a2a smoke test — two agents, code-word relay
+demo/a2a_hello
+commerce/agentic_checkout

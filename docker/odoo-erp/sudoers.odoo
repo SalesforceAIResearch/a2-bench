@@ -1,0 +1,12 @@
+# Scoped, password-free elevation for the agent user.
+#
+# The agent runs as `user` (uid 1000). The Odoo + PostgreSQL data plane runs as
+# the `odoo` service account (uid 1001). The ONLY thing the agent may do as odoo
+# is invoke the one-shot control helper the task's start() hook drives to boot
+# the services and reset the working DB. It grants no shell, no other binary,
+# and no other target user — so it cannot be turned into a general privilege
+# escalation or a way to read odoo-owned secrets.
+#
+# Installed by the Dockerfile as /etc/sudoers.d/50-odoo (chmod 0440, checked
+# with `visudo -cf`).
+user ALL=(odoo) NOPASSWD: /opt/odoo/bin/odoo_ctl

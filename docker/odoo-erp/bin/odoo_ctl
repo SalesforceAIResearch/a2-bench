@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+# odoo_ctl — runtime control helper for the odoo-erp data plane.
+#
+# Invoked ONLY as `sudo -u odoo /opt/odoo/bin/odoo_ctl <verb>` (scoped by
+# /etc/sudoers.d/50-odoo). The image never starts a service in its CMD — the
+# a2a hub stays PID 1 — so the task's start() hook boots the cluster + Odoo and
+# resets the working DB per run through this helper. All PG client calls use the
+# local socket as OS user odoo (peer auth, no password); the TCP path stays
+# password-gated for everyone else (the capability-asymmetry lever).
+#
+# Verbs:
+#   boot         start PG (if down) + ensure `odoo_write` + start Odoo (if down),
+#                then wait until both PG:5432 and Odoo:8069 accept connections.
+#   reset [db]   drop + recreate <db> (default odoo_write) from the AgentService
+#                template — restoring pristine state — and leave Odoo serving it.
+#   status       print PG / Odoo up-down + whether the working DB exists.
+set -euo pipefail
+
+export HOME=/home/odoo
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+PG_MAJOR=17                       # matches the Dockerfile ARG PG_MAJOR default
+PGBIN="/usr/lib/postgresql/${PG_MAJOR}/bin"
+PGDATA="/opt/odoo/data"
+SOCKDIR="/var/run/postgresql"
+PGLOG="/opt/odoo/log/pg.log"
+ODOO_BIN="/usr/bin/odoo"
+ODOO_CONF="/opt/odoo/odoo.conf"
+ODOO_LOG="/opt/odoo/log/odoo.log"
+ODOO_PID="/opt/odoo/run/odoo.pid"
+TEMPLATE="AgentService"
+DB_DEFAULT="odoo_write"
+PG_PORT=5432
+ODOO_PORT=8069
+
+log()  { echo "[odoo_ctl] $*" >&2; }
+die()  { echo "[odoo_ctl] FATAL: $*" >&2; exit 1; }
+
+port_open() { timeout 2 bash -c ">/dev/tcp/127.0.0.1/$1" >/dev/null 2>&1; }
+
+pg_running() { "${PGBIN}/pg_ctl" -D "${PGDATA}" status >/dev/null 2>&1; }
+
+odoo_running() { port_open "${ODOO_PORT}"; }
+
+db_exists() {
+  local db="$1"
+  local got
+  got="$("${PGBIN}/psql" -h "${SOCKDIR}" -p "${PG_PORT}" -U odoo -d postgres -tAc \
+    "SELECT 1 FROM pg_database WHERE datname='${db}';" 2>/dev/null || true)"
+  [[ "${got}" == "1" ]]
+}
+
+ensure_sockdir() {
+  # Idempotent: created odoo-owned at build; a no-op here unless it vanished.
+  if [[ ! -d "${SOCKDIR}" ]]; then
+    mkdir -p "${SOCKDIR}" 2>/dev/null \
+      || die "${SOCKDIR} missing and not creatable as $(id -un) — image build issue"
+  fi
+  [[ -w "${SOCKDIR}" ]] || die "${SOCKDIR} not writable by $(id -un)"
+}
+
+start_pg() {
+  if pg_running; then log "PG already running"; return 0; fi
+  log "starting PostgreSQL cluster"
+  "${PGBIN}/pg_ctl" -D "${PGDATA}" -l "${PGLOG}" -w -t 60 start \
+    || { tail -n 40 "${PGLOG}" 2>/dev/null || true; die "pg_ctl start failed"; }
+}
+
+wait_pg() {
+  local i
+  for i in $(seq 1 30); do
+    if "${PGBIN}/pg_isready" -h "${SOCKDIR}" -p "${PG_PORT}" >/dev/null 2>&1; then
+      log "PG accepting connections on ${PG_PORT}"; return 0
+    fi
+    sleep 1
+  done
+  tail -n 40 "${PGLOG}" 2>/dev/null || true
+  die "PG did not become ready on ${PG_PORT}"
+}
+
+start_odoo() {
+  if odoo_running; then log "Odoo already listening on ${ODOO_PORT}"; return 0; fi
+  log "starting Odoo (background)"
+  # setsid + detached fds so it survives the docker-exec that launched us and
+  # reparents to PID 1 rather than getting SIGHUP'd when the exec shell exits.
+  setsid "${ODOO_BIN}" -c "${ODOO_CONF}" >>"${ODOO_LOG}" 2>&1 </dev/null &
+  echo $! > "${ODOO_PID}" || true
+}
+
+wait_odoo() {
+  local i
+  for i in $(seq 1 90); do
+    if odoo_running; then log "Odoo accepting connections on ${ODOO_PORT}"; return 0; fi
+    sleep 1
+  done
+  tail -n 60 "${ODOO_LOG}" 2>/dev/null || true
+  die "Odoo did not become ready on ${ODOO_PORT}"
+}
+
+stop_odoo() {
+  if [[ -f "${ODOO_PID}" ]]; then
+    local pid; pid="$(cat "${ODOO_PID}" 2>/dev/null || true)"
+    if [[ -n "${pid}" ]]; then kill -TERM "-${pid}" 2>/dev/null || kill -TERM "${pid}" 2>/dev/null || true; fi
+  fi
+  # Belt-and-suspenders: reap any Odoo we own bound to this config.
+  pkill -TERM -u odoo -f "${ODOO_BIN} -c ${ODOO_CONF}" 2>/dev/null || true
+  local i
+  for i in $(seq 1 30); do
+    odoo_running || { log "Odoo stopped"; rm -f "${ODOO_PID}" 2>/dev/null || true; return 0; }
+    sleep 1
+  done
+  pkill -KILL -u odoo -f "${ODOO_BIN} -c ${ODOO_CONF}" 2>/dev/null || true
+  sleep 1
+  rm -f "${ODOO_PID}" 2>/dev/null || true
+}
+
+terminate_backends() {
+  local db="$1"
+  "${PGBIN}/psql" -h "${SOCKDIR}" -p "${PG_PORT}" -U odoo -d postgres -q -c \
+    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+       WHERE datname='${db}' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
+}
+
+create_db_from_template() {
+  local db="$1"
+  log "createdb ${db} TEMPLATE ${TEMPLATE}"
+  "${PGBIN}/createdb" -h "${SOCKDIR}" -p "${PG_PORT}" -U odoo -O odoo -T "${TEMPLATE}" "${db}" \
+    || die "createdb ${db} from template ${TEMPLATE} failed"
+}
+
+drop_db() {
+  local db="$1"
+  terminate_backends "${db}"
+  log "dropdb --if-exists ${db}"
+  "${PGBIN}/dropdb" -h "${SOCKDIR}" -p "${PG_PORT}" -U odoo --if-exists "${db}" \
+    || die "dropdb ${db} failed"
+}
+
+cmd_boot() {
+  ensure_sockdir
+  start_pg
+  wait_pg
+  if ! db_exists "${DB_DEFAULT}"; then
+    log "${DB_DEFAULT} missing — creating from template"
+    create_db_from_template "${DB_DEFAULT}"
+  fi
+  start_odoo
+  wait_odoo
+  log "boot OK (PG:${PG_PORT} + Odoo:${ODOO_PORT} up; ${DB_DEFAULT} present)"
+}
+
+cmd_reset() {
+  local db="${1:-${DB_DEFAULT}}"
+  ensure_sockdir
+  start_pg
+  wait_pg
+  # Drop requires no live connections to <db>: stop Odoo (it holds a pool) and
+  # terminate any stragglers, then recreate from the pristine template.
+  stop_odoo
+  drop_db "${db}"
+  create_db_from_template "${db}"
+  # Leave Odoo serving the fresh DB (the run needs the HTTP/RPC endpoint up).
+  start_odoo
+  wait_odoo
+  log "reset OK (${db} restored from template ${TEMPLATE}; Odoo up)"
+}
+
+cmd_status() {
+  local pg="down" od="down" db="absent"
+  if pg_running; then pg="up"; fi
+  if odoo_running; then od="up"; fi
+  if pg_running && db_exists "${DB_DEFAULT}"; then db="present"; fi
+  echo "PG=${pg} Odoo=${od} ${DB_DEFAULT}=${db}"
+}
+
+verb="${1:-}"
+case "${verb}" in
+  boot)   cmd_boot ;;
+  reset)  shift || true; cmd_reset "${1:-}" ;;
+  status) cmd_status ;;
+  *)      die "usage: odoo_ctl {boot|reset [db]|status}" ;;
+esac

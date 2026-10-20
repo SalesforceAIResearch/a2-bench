@@ -1,0 +1,35 @@
+# cursor — Anysphere's cursor-agent CLI, run headless (`-p`) on the sandbox.
+# Auth: CURSOR_API_KEY (crsr_...) from the operator env / secret file.
+# cursor-agent only talks to Cursor's own backend: no BYOK / OpenRouter path.
+#
+# `model:` is a Cursor CATALOG id (`cursor-agent --list-models`); the
+# reasoning tier is encoded in the id itself (…-low / -medium / -high).
+# Reference from an experiment as:  agents: { role: configs/agents/cursor.yaml }
+
+harness: cursor
+# executor: sandbox          # only supported value (deployer default); runs inside the eval VM.
+
+# Example model — sugar for config.model. Dataclass default: "" = auto
+# (cursor picks its own Composer model). Pin a catalog id for benchmark runs
+# so the run directory and trajectory name the model that actually ran.
+model: cursor-grok-4.6-high
+
+config:
+  # Fixed routing marker — cursor-agent has no BYOK/OpenRouter path.
+  provider: cursor
+
+  # Pinned cursor-agent version (Cursor's date-hash scheme). The deployer
+  # reinstalls from downloads.cursor.com when the installed version differs.
+  cursor_version: "2026.08.11-e8db854"
+
+  # Permission deny patterns for ~/.cursor/cli-config.json, e.g.
+  # "Shell(rm *)" or "Mcp(server, tool)". Empty: the outer benchmark
+  # container is the real sandbox.
+  disabled_tools: []
+
+  # Server-side web tools (WebSearch/WebFetch run on Cursor's backend over
+  # the model connection, bypassing the container egress allowlist; a
+  # permissions.deny entry is ignored under --force). false ⇒ the deployer
+  # runs the CLI in allowlist approval mode WITHOUT --force: shell/read/
+  # write/MCP auto-run via allow tokens, web tools auto-reject headless.
+  allow_web_tools: false

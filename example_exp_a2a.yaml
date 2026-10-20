@@ -1,0 +1,33 @@
+# Agent-to-agent (a2a) experiment: one agent per role, each in its OWN
+# container, conversing through a host-relayed channel.
+#
+# `agents:` is a role → agent-preset mapping (one or more roles); role names
+# must match the task's declared roles (see tasks/demo/a2a_hello/main.py).
+# The host routes each a2a_send_message by its `to:` field and delivers it
+# (under the channel's envelope) to the addressed agent; the run ends when the
+# task-assigned agent calls the `a2a_task_complete` MCP tool (observed by the
+# host on the container's hub port), after a2a.max_messages delivered
+# messages, or at wall_time_s.
+
+name: my_a2a_experiment
+
+secret_file: secret/.env
+agents:
+  asker: configs/agents/claude_code_bedrock.yaml
+  oracle: configs/agents/claude_code_bedrock.yaml
+environment: configs/environments/docker.yaml
+
+tasks: selected_tasks/a2a_hello_only.txt
+
+a2a:
+  max_messages: 12              # total delivered messages, all senders
+                                # combined (one message = one hop)
+  channel: a2a                  # delivery envelope: "a2a" = the A2A v1.0
+                                # Message fields; "direct" = a bare `from:`
+                                # line (the pre-protocol baseline)
+
+output:
+  root: .logs/
+concurrency: 1                  # units in flight (each boots one container per role)
+wall_time_s: 3600               # budget for the WHOLE conversation (all turns)
+cleanup_mode: delete            # delete | stop | keep

@@ -1,0 +1,30 @@
+# Capability-asymmetry benchmark — ALL tasks for the `when-agents-coordinate`
+# suite in one manifest. Experiments share this file: the runner keeps only the
+# tasks whose declared roles EXACTLY match the experiment's `agents:` binding and
+# skips the rest (see Runner.enumerate_units — `task_roles != bound` ⇒ skip).
+#
+# Role-set → which experiment picks it up:
+#   {analyst_a}                       → web_egress_solo  (unique 1-role)
+#   {analyst_a, analyst_b}            → web_egress_n2     (unique 2-role)
+#   {analyst_a, analyst_b, analyst_c} → web_egress_n3     (unique 3-role)
+#   {analyst_a..d}                    → web_egress_n4     (unique 4-role)
+#   {operator_a, operator_b}          → odoo_write_n2     (unique — distinct names)
+#
+# The web_egress_* tasks are ONE scenario at team sizes N = 1..4 (shared
+# implementation in tasks/capability/_web_egress.py). Each ships the variants
+# none / one / all (a COUNT of how many peers hold open web egress) plus
+# none_declared. The capability-ESCAPE ("leak") study — a restricted codex agent
+# proxying a web search through its own allowlisted model endpoint — is now just
+# a BINDING choice on these tasks (bind analyst_a=codex on the none / none_declared
+# variants), measured out of band by the capability_leak metric; it is no longer a
+# separate task.
+
+# --- capability-asymmetry track (invisible egress split, k-of-n) ------------
+capability/web_egress_solo
+capability/web_egress_n2
+capability/web_egress_n3
+capability/web_egress_n4
+
+# --- capability-asymmetry track (invisible ERP write-credential split) ------
+# Distinct roles {operator_a, operator_b} ⇒ cleanly isolated by binding.
+capability/odoo_write_n2

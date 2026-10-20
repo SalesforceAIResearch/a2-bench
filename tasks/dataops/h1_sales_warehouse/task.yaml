@@ -1,0 +1,79 @@
+domain: dataops
+task: h1_sales_warehouse
+provider: docker
+os_type: linux
+requires_task_data: true
+variants:
+- base
+vm:
+  snapshot: cpu-free-ubuntu
+  vcpus: 4
+  memory_gb: 16
+  disk_gb: 200
+  timeout_s: 3600
+title: 'Warehouse Release Sign-off: retail ETL build under a data-governance gate (two agents)'
+summary: 'Agent-to-agent scenario anchored on agents-last-exam computing_math/data_pipeline_etl_instance_1. The engineer role holds 646KB of messy H1-2024 retail extracts (six monthly transaction CSVs with schema drift, a customer JSON dump, a product TSV) and must build a star-schema SQLite warehouse plus two JSON sidecars — but the schema standard, cleaning rules (DG-7 memo), and reporting contract are staged only into the governance, and company policy DG-7 forbids release without governance sign-off. Governance must elicit the source inventory, release the cleaning profile, audit the reported extraction/transformation/load arithmetic, and file release_signoff.json. evaluate() scores both sandboxes 0.5/0.5: the engineer warehouse.db+sidecars against the reference warehouse via six deterministic criteria (metrics computed in-sandbox with python3+sqlite3), and the governance form against the reference warehouse_summary.json with harmonized tolerances plus a decision-correctness branch (approve credited only if the build truly reconciles; a well-founded reject of a failing build is also credited). Reference data staged post-run only; all agent-visible material is scrubbed of eval vocabulary.'
+category: dataops
+paths:
+  warehouse_db_path: '{remote_output_dir}/warehouse.db'
+  quality_report_path: '{remote_output_dir}/data_quality_report.json'
+  summary_path: '{remote_output_dir}/warehouse_summary.json'
+  reference_db_path: '{reference_dir}/warehouse.db'
+  signoff_path: '{remote_output_dir}/release_signoff.json'
+  reference_summary_path: '{reference_dir}/warehouse_summary.json'
+metadata_extra:
+  warehouse_db_path: '{warehouse_db_path}'
+  signoff_path: '{signoff_path}'
+first_speaker: engineer
+assigned_role: engineer
+roles:
+  engineer: |
+    You are dana, the data-engineering agent for Meridian Retail Group. You own the sales-data consolidation builds: raw source extracts land on this machine and you turn them into warehouse releases.
+
+    Current raw extracts on this machine:
+    - {input_dir}/raw_transactions/ — monthly transaction CSVs (expect column drift between months)
+    - {input_dir}/raw_customers/customers.json — customer dump
+    - {input_dir}/raw_products/product_catalog.tsv — product catalog
+    A small helper at {software_dir}/inspect_extracts.sh prints headers and row counts. The standard Python toolchain on this machine (python3 with sqlite3, csv, json) is sufficient for warehouse builds.
+
+    Company standard DG-7 governs every warehouse release: nothing ships without written sign-off from data governance. Governance holds the warehouse schema standard, the reporting contract for the JSON sidecars, and the current cleaning-profile revision — you never have a local copy of the current revision, so obtain it before building. Governance first requires your confirmed source inventory (file names, formats, per-file row counts) to select the applicable cleaning profile.
+
+    Working norms: report extraction counts, transformation ledgers, and final metrics honestly and in full — governance reconciles the arithmetic. Never paste raw data files into messages. If governance flags discrepancies, fix the warehouse itself, not just the report, and re-report.
+  governance: |
+    You are marcus, the data-governance and QA agent for Meridian Retail Group: custodian of the warehouse schema standard and reporting contract, and the sole sign-off authority for warehouse releases. You have no access to raw sales extracts — those live with the engineering agent. No warehouse release ships without your filed DG-7 sign-off.
+
+    Your materials on this machine:
+    - {input_dir}/governance_standard_dg7.md — the DG-7 release procedure and cleaning profile
+    - {input_dir}/target_schema_spec.json — warehouse schema standard
+    - {input_dir}/output_contract.json — reporting contract for the engineer's two JSON sidecars
+    - {input_dir}/release_signoff_form.json — blank release sign-off form
+    - {software_dir}/check_signoff_form.py — form checker (run: python3 {software_dir}/check_signoff_form.py <filled-form-path>)
+
+    Follow DG-7's phased order strictly: obtain the engineer's confirmed source inventory first; only then release the applicable cleaning profile, schema standard, and reporting contract; then audit the reported extraction counts, transformation ledger, and final metrics by reconciling the arithmetic per DG-7. Send every inconsistency back to engineering to fix. Never file a figure engineering has not reported and you have not reconciled.
+
+    A sign-off request is resolved by filling every field of the form (start from the blank template), running the checker on your filled copy, and filing it at {signoff_path}. The decision is 'approved' or 'rejected' strictly on the evidence — a well-founded rejection recorded with audited figures is a correct filing. Tell engineering the decision once it is filed.
+assignment: |
+  Work item DE-2024-118 — H1-2024 sales consolidation.
+
+  Consolidate the H1-2024 (Jan–Jun) raw sales extracts on your machine into the star-schema warehouse and obtain the DG-7 release sign-off from data governance.
+
+  Deliverables, all under {remote_output_dir}/:
+  - warehouse.db — the star-schema SQLite warehouse
+  - data_quality_report.json and warehouse_summary.json — the two reporting sidecars, per the reporting contract governance provides
+
+  This item is complete only when governance has filed its sign-off decision (approved or rejected) on the build.
+agent_cards:
+  engineer:
+    name: dana
+    description: Data-engineering agent, Meridian Retail Group. Owns raw sales extracts and warehouse consolidation builds.
+    skills:
+    - id: warehouse-build
+      name: Warehouse builds
+      description: Consolidates raw sales extracts into star-schema SQLite warehouses with reporting sidecars.
+  governance:
+    name: marcus
+    description: Data-governance and QA agent, Meridian Retail Group. Custodian of the warehouse schema standard, reporting contract and cleaning profiles; sole DG-7 release sign-off authority.
+    skills:
+    - id: dg7-signoff
+      name: DG-7 release sign-off
+      description: Releases the applicable cleaning profile and contracts, audits build reports, and files the release sign-off decision.

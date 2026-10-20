@@ -1,0 +1,14 @@
+# OpenAI Codex CLI, run headlessly inside the benchmark container.
+# Authentication is intentionally simple: OPENAI_API_KEY is the only accepted
+# credential and is passed through the framework's read-once secrets sidecar.
+
+harness: codex
+model: gpt-5.6-sol
+
+config:
+  reasoning_effort: high
+  sandbox_mode: danger-full-access
+  yolo: true
+  web_search: disabled   # server-side web: bypasses sandbox egress via model conn
+  mcp_tool_timeout_s: 86400
+  cli_version: "@openai/codex@0.145.0"

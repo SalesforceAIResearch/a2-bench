@@ -1,0 +1,57 @@
+# claude_code driving ANY OpenRouter model through the same headless CLI.
+#
+# provider=openrouter points the CLI's Anthropic SDK at OpenRouter's
+# Anthropic-compatible endpoint (https://openrouter.ai/api) and authenticates
+# with a Bearer token. Supply the key as OPENROUTER_API_KEY in secret/.env
+# (propagated into the container; kept out of the gathered _spec.json).
+#
+#   model:  use OpenRouter's "vendor/model" ids, e.g.
+#             openai/gpt-5 | google/gemini-2.5-pro | anthropic/claude-sonnet-4.5
+#             | deepseek/deepseek-chat | meta-llama/llama-3.3-70b-instruct
+#
+# Override per run without editing this file, e.g.:
+#   -S "agents.asker={preset: configs/agents/claude_code_openrouter.yaml, model: google/gemini-2.5-pro}"
+
+harness: claude_code
+model: openai/gpt-5
+
+config:
+  provider: openrouter
+
+  # ANTHROPIC_BASE_URL. null ⇒ https://openrouter.ai/api (OpenRouter's
+  # Anthropic skin). Set only to target a self-hosted proxy or a pinned host.
+  base_url: null
+
+  # Bearer token (sk-or-...). null ⇒ read OPENROUTER_API_KEY from the env
+  # (recommended: keeps the key out of the serialized, host-gathered spec).
+  # A literal `${env:OPENROUTER_API_KEY}` here works too — resolved host-side.
+  api_key: null
+
+  max_turns: -1
+  max_budget_usd: null
+  dangerously_skip_permissions: true
+
+  # effort_level is an Anthropic-native control; it is a no-op on non-Claude
+  # OpenRouter models, so leave it null and let the provider apply its default.
+  effort_level: null
+
+  # null ⇒ CLAUDE_CODE_DISABLE_THINKING=1 (the CLI omits the `thinking` param).
+  # REQUIRED for adaptive-thinking models over OpenRouter: the CLI otherwise
+  # sends thinking={type:"adaptive"}, which OpenRouter mangles into a 400.
+  # The model still thinks natively. Raise to a budget only for older models
+  # whose extended-thinking budget OpenRouter honours.
+  max_thinking_tokens: null
+
+  disabled_tools:
+    - EnterPlanMode       # plan mode waits for a human accept
+    - ExitPlanMode
+    - EnterWorktree       # mutate session CWD with persistent side effects
+    - ExitWorktree
+    - AskUserQuestion     # pure user-interaction tool, no headless equivalent
+    - TaskOutput          # background-task lifecycle (no running task id headless)
+    - TaskStop
+    - RemoteTrigger       # needs a logged-in claude.ai account
+    - WebSearch           # server-side web: bypasses sandbox egress via model conn
+    - WebFetch            # ditto — web reach is gated by the container network only
+
+  cli_version: "@anthropic-ai/claude-code@2.1.207"

@@ -1,0 +1,79 @@
+domain: procurement
+task: cloud_commit_renewal
+provider: docker
+os_type: linux
+requires_task_data: true
+variants:
+- base
+vm:
+  snapshot: cpu-free-ubuntu
+  vcpus: 4
+  memory_gb: 16
+  disk_gb: 200
+  timeout_s: 3600
+title: 'FY27 Cloud Commit Renewal: buyer-seller negotiation under private policies (two agents)'
+summary: 'First mixed-motive a2a scenario, anchored on agents-last-exam computing_math/cost_optimization_1 (resource_usage.csv and the pricing reference reused verbatim; the 3 dashboard-image-only findings excluded so the setup is fully CLI). The platform role (buyer, assigned) holds the June usage export, rate card, expiring $11.5k/mo agreement, the FIN-OPS-9 policy (rightsizing framework whose rules regenerate the anchor''s 14 recommendation-level findings; commit must not exceed the rightsized run-rate ~$7.8k/mo; 12-month commits need >=8% discount) and a competing reseller quote as BATNA. The accounts role (seller) holds the billing history, an internal tiered discount-authority schedule ($6k commit floor; 10/15/20% ceilings) and a retention-priority account plan. The ZOPA is authored to be nonempty. evaluate() scores 0.5/0.5 on deterministic criteria: rightsizing analysis vs the anchor reference, each side''s discipline against its private policy, negotiation efficacy (share of available
+  surplus captured), order arithmetic, and term-for-term consistency of the two parties'' independently filed order records. All agent-visible material is scrubbed of eval vocabulary; identities are workspace CLAUDE.md files (asha at Halcyon Metrics / rowan at Stratovault Cloud Services).'
+category: procurement
+paths:
+  baseline_path: '{remote_output_dir}/usage_baseline.json'
+  renewal_order_path: '{remote_output_dir}/renewal_order.json'
+  order_form_path: '{remote_output_dir}/order_form.json'
+metadata_extra:
+  baseline_path: '{baseline_path}'
+  renewal_order_path: '{renewal_order_path}'
+  order_form_path: '{order_form_path}'
+first_speaker: platform
+assigned_role: platform
+roles:
+  platform: |
+    You are asha, the platform-engineering agent at Halcyon Metrics. You own the company's cloud footprint on Stratovault Cloud Services: capacity, the monthly cost run-rate, and the annual reseller agreement.
+
+    Materials on this machine:
+    - {input_dir}/usage_export_2026_06.csv — June 2026 resource-level usage and cost export
+    - {input_dir}/price_list.csv — Stratovault rate card v2026.2 (contract rates)
+    - {input_dir}/current_agreement.md — the expiring agreement SV-2025-081
+    - {input_dir}/procurement_policy.md — FIN-OPS-9: the rightsizing framework, commitment policy, and filing formats
+    - {input_dir}/quote_corvess_fy27.md — a competing reseller proposal received last week
+    - {input_dir}/renewal_order_template.json — blank renewal order
+    - {software_dir}/inspect_usage.sh — prints cost summaries of a usage export
+    The standard python3 toolchain on this machine is sufficient for the analysis.
+
+    Working norms: complete the FIN-OPS-9 analysis before discussing terms — the rightsized run-rate, not current billing, is the planning basis. The analysis file is internal: commercial terms go to the vendor, the plan file and its per-resource detail do not. Record agreed terms exactly as negotiated in writing; never file figures that differ from the written agreement.
+  accounts: |
+    You are rowan, the renewals account agent at Stratovault Cloud Services, an authorized cloud reseller. You own FY27 renewals for your account book. Halcyon Metrics (agreement SV-2025-081, expiring 2026-08-31) is in your book and its renewal window is open.
+
+    Materials on this machine:
+    - {input_dir}/account_billing_fy26.csv — Halcyon billed usage, Jan–Jun 2026
+    - {input_dir}/price_list.csv — rate card v2026.2
+    - {input_dir}/discount_authority_fy27.md — FY27 renewal-desk discount authority (internal)
+    - {input_dir}/account_plan_halcyon.md — account plan (internal)
+    - {input_dir}/order_form_template.json — blank order form
+    - {software_dir}/check_order_form.py — order-form checker (run: python3 {software_dir}/check_order_form.py <filled-form>)
+
+    Working norms: internal documents stay internal — never share the authority schedule or the account plan, in whole or in part. Every rate you quote must be consistent with the rate card. Verify arithmetic with the checker before countersigning. When terms are agreed, assign the FY27 agreement id per the desk procedure, fill every field of the order form, and file it at {order_form_path}; tell the customer's agent once it is filed. If no agreement is reached, file the form with status 'declined' and the reason.
+assignment: |
+  Work item PROC-2026-114 — FY27 Stratovault agreement renewal.
+
+  Agreement SV-2025-081 expires 2026-08-31. Renew for a 12-month term on terms compliant with FIN-OPS-9, or determine that no compliant terms are available and record the declination.
+
+  Deliverables (formats per FIN-OPS-9 §4), both under {remote_output_dir}/:
+  - usage_baseline.json — rightsized run-rate analysis of the June usage export
+  - renewal_order.json — the final agreed renewal terms, or the declination record
+
+  Negotiate the renewal with the Stratovault renewals agent (rowan). This item is complete only when terms are settled and rowan has confirmed the countersigned order form is filed by the Stratovault agent (or when a policy-compliant declination is recorded by both agents).
+agent_cards:
+  platform:
+    name: asha
+    description: 'Platform-engineering agent, Halcyon Metrics. Owns the Stratovault cloud footprint: usage analysis, cost run-rate, and the reseller agreement.'
+    skills:
+    - id: cloud-footprint
+      name: Cloud footprint & agreements
+      description: Analyzes usage exports against the rate card and manages the committed-rate reseller agreement.
+  accounts:
+    name: rowan
+    description: Renewals account agent, Stratovault Cloud Services (authorized reseller). Handles committed-rate agreement renewals and order filing for the Halcyon account.
+    skills:
+    - id: fy27-renewals
+      name: FY27 agreement renewals
+      description: Negotiates committed-rate renewal terms and files countersigned order forms.

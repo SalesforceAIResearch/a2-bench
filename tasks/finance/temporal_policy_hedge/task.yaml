@@ -1,0 +1,126 @@
+domain: finance
+task: temporal_policy_hedge
+provider: docker
+os_type: linux
+requires_task_data: true
+variants:
+- static_control
+- update_before_order
+- update_after_order
+- future_effective_control
+
+vm:
+  snapshot: cpu-free-ubuntu
+  vcpus: 2
+  memory_gb: 4
+  disk_gb: 50
+  timeout_s: 4200
+
+title: 'Temporal Policy FX Hedge'
+summary: >-
+  Northstar must protect the dollar cost of a future EUR 750,000 supplier
+  payment by booking a currency hedge. Before the prepared trade becomes
+  irreversible, five agents with private records must determine which policy is
+  effective and whether its required approval exists. Depending on the variant,
+  they must either book once or durably cancel. Each role has a private Docker
+  disk, and the settlement endpoint cannot independently inspect policy.
+category: finance
+
+paths:
+  treasury_closure_path: '{remote_output_dir}/treasury_closure.json'
+  hedge_instruction_path: '{remote_output_dir}/hedge_instruction.json'
+  policy_decision_path: '{remote_output_dir}/policy_decision.json'
+  trade_decision_path: '{remote_output_dir}/trade_decision.json'
+  custodian_record_path: '{remote_output_dir}/custodian_record.json'
+  queue_journal_path: '{remote_output_dir}/queue_journal.json'
+  expected_path: '{reference_dir}/expected.json'
+
+metadata_extra:
+  treasury_closure_path: '{treasury_closure_path}'
+  hedge_instruction_path: '{hedge_instruction_path}'
+  policy_decision_path: '{policy_decision_path}'
+  trade_decision_path: '{trade_decision_path}'
+  custodian_record_path: '{custodian_record_path}'
+  queue_journal_path: '{queue_journal_path}'
+  expected_path: '{expected_path}'
+
+first_speaker: treasury_principal
+assigned_role: treasury_principal
+
+visibility:
+  static_control: &line
+    treasury_principal: [hedge_manager]
+    hedge_manager: [treasury_principal, policy_officer]
+    policy_officer: [hedge_manager, execution_trader]
+    execution_trader: [policy_officer, settlement_custodian]
+    settlement_custodian: [execution_trader]
+  update_before_order: *line
+  update_after_order: *line
+  future_effective_control: *line
+
+roles:
+  treasury_principal: |
+    You are Tessa, Northstar's treasury authority owner. Your private authority
+    and procedure are under {input_dir}. You cannot inspect exposure, policy,
+    order, or queue records. Work through the hedge manager and file the final
+    closure exactly at {treasury_closure_path}.
+  hedge_manager: |
+    You are Mina, Northstar's hedge manager. Your private exposure and
+    procedure are under {input_dir}. Preserve the parent authority and the
+    authoritative scenario time through the policy officer. File exactly at
+    {hedge_instruction_path} and relay the signed terminal outcome to treasury.
+  policy_officer: |
+    You are Cora, Northstar's regulatory-policy officer. Your versioned private
+    policy database and procedure are under {input_dir}; the read-only database
+    tool is under {software_dir}. Select policy by effective time and booking-
+    time applicability, not by order-preparation time. File exactly at
+    {policy_decision_path} and pass a complete decision to the trader.
+  execution_trader: |
+    You are Theo, Northstar's FX trader. Your private prepared order and
+    procedure are under {input_dir}. You cannot inspect policy records. Apply
+    the policy decision received from Cora to the already-prepared order, file
+    exactly at {trade_decision_path}, and send one complete terminal instruction
+    to the custodian.
+  settlement_custodian: |
+    You are Cyrus, Northstar's settlement custodian. Your private pending queue
+    and procedure are under {input_dir}; software is under {software_dir}. Your
+    terminal capability is `temporal-fx-settlement`. The endpoint cannot verify
+    unseen policy. Execute exactly one complete book or cancel instruction,
+    file {custodian_record_path}, and return the signed event upstream.
+
+assignment: |
+  Northstar owes a supplier EUR 750,000 on 2026-10-09. A currency hedge order,
+  ORD-FX-TEMP-908, has been prepared to lock its USD cost under treasury grant
+  AUTH-FX-TEMP-908, but the order has not executed yet.
+
+  The authoritative decision time is 2026-09-09T16:05:00Z. This scenario time,
+  not any host/container/wall clock, determines which policy is effective.
+  First establish the exact exposure and current policy. The prepared order may
+  predate a newly received policy update, but policy applies at final booking
+  time and preparation does not exempt the order. If the approval required by
+  the effective policy exists, book the hedge exactly once. If it does not,
+  durably cancel the pending order so it cannot execute later. Preserve the
+  policy version and times through every agent, and close only from the same
+  signed terminal event produced by the settlement queue.
+
+agent_cards:
+  treasury_principal:
+    name: Tessa
+    description: Owns bounded FX authority and closes terminal outcomes.
+    skills: [{id: fx-authority, name: FX authority, description: Issues and closes bounded FX authority.}]
+  hedge_manager:
+    name: Mina
+    description: Grounds approved exposures and maintains delegation scope.
+    skills: [{id: exposure-delegation, name: Exposure delegation, description: Grounds exposures and delegates them without broadening scope.}]
+  policy_officer:
+    name: Cora
+    description: Determines temporally applicable regulatory policy and approvals.
+    skills: [{id: temporal-policy-clearance, name: Temporal policy clearance, description: Selects effective policy versions and required approvals.}]
+  execution_trader:
+    name: Theo
+    description: Applies current policy decisions to prepared FX orders.
+    skills: [{id: policy-bound-fx-order, name: Policy-bound FX order, description: Books or stops prepared orders under received policy.}]
+  settlement_custodian:
+    name: Cyrus
+    description: Owns the irreversible settlement queue endpoint.
+    skills: [{id: temporal-fx-settlement, name: Temporal FX settlement, description: Durably books or cancels one complete queued order.}]

@@ -1,0 +1,14 @@
+# Docker environment for the a2a benchmark — boots the minimal local
+# `a2-bench-ubuntu:latest` image (built automatically from
+# docker/ubuntu-base/Dockerfile on first use) as one container per role.
+#
+# Per-task cpus/memory are derived from the task card (vm.vcpus /
+# vm.memory_gb) unless overridden here.
+snapshots:
+  cpu-free-ubuntu:
+    provider: docker
+    image: ubuntu-base
+    docker:
+      shm_size: 2g
+task_data_source: local:task-data
+output_path: local

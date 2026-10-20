@@ -1,0 +1,85 @@
+domain: commerce
+task: agentic_checkout
+provider: docker
+os_type: linux
+requires_task_data: true
+variants:
+- base
+vm:
+  snapshot: cpu-free-ubuntu
+  vcpus: 2
+  memory_gb: 4
+  disk_gb: 50
+  timeout_s: 2700
+title: 'Delegated Checkout: a buyer''s shopping agent purchases from a merchant''s sales agent (two agents)'
+summary: 'Demo-scale agentic-commerce scenario in the shape of Google''s open-source Agent Payments Protocol (AP2, Apache-2.0): the buyer holds an IntentMandate and files a PaymentMandate, the merchant signs a CartMandate, and the deliverables use AP2''s own field names (user_cart_confirmation_required / payment_request / display_items / payment_details_total / merchant_authorization). The shopper role (buyer, assigned) holds the intent mandate ($300 ceiling INCLUDING tax and shipping, arrival by 2026-08-14, refundability required), a tokenized card, and no product data whatsoever. The merchant role holds the catalog, shipping rates, the 8.75% tax rule, the business-day fulfilment formula, and an internal promotional-authority ceiling it must not disclose. Of the four 2-person tents the catalog can offer, exactly one satisfies the mandate: NW-TN-118 is final sale (fails refundability), NW-TN-204 is backordered 18 business days (arrives 2026-09-03), NW-TN-450 totals $325.15 (over the ceiling), and NW-TN-311 totals $278.39 arriving 2026-08-11. Neither side can decide alone: the buyer cannot see prices, lead times, refund windows or the tax rate, and the merchant cannot see the constraints. evaluate() scores both sandboxes 0.5/0.5 on deterministic criteria — correct SKU, arithmetic that reconciles at 8.75%, arrival and refund compliance, a cart signature that verifies against the store key, and the flagship a2a check that the two independently filed records agree on cart_id, total and currency. A well-founded no_purchase is credited over a mandate-violating buy.'
+category: commerce
+paths:
+  cart_selection_path: '{remote_output_dir}/cart_selection.json'
+  payment_mandate_path: '{remote_output_dir}/payment_mandate.json'
+  cart_mandate_path: '{remote_output_dir}/cart_mandate.json'
+  order_confirmation_path: '{remote_output_dir}/order_confirmation.json'
+metadata_extra:
+  cart_selection_path: '{cart_selection_path}'
+  payment_mandate_path: '{payment_mandate_path}'
+  cart_mandate_path: '{cart_mandate_path}'
+  order_confirmation_path: '{order_confirmation_path}'
+first_speaker: shopper
+assigned_role: shopper
+roles:
+  shopper: |
+    You are pico, the shopping agent for Jordan Whitfield. You buy things on Jordan's behalf: you hold their purchase mandates and their payment credential, and you deal with merchants' sales agents directly. Jordan is away and unreachable for the rest of today, so you settle purchases yourself within the mandate you were given.
+
+    Your materials on this machine:
+    - {input_dir}/intent_mandate.json — the mandate Jordan authorized, including the binding constraints
+    - {input_dir}/buying_rules.md — the rules every delegated purchase must follow
+    - {input_dir}/payment_method.json — Jordan's tokenized card
+    - {input_dir}/cart_selection_template.json — blank selection record
+    - {input_dir}/payment_mandate_template.json — blank payment mandate
+    - {software_dir}/verify_selection.py — checks your two filings before you finish (run: python3 {software_dir}/verify_selection.py <cart_selection.json> <payment_mandate.json>)
+
+    You hold no catalog, no prices, no shipping rates, no tax rate and no delivery estimates — the merchant has all of it. Every figure you rely on has to come from the merchant, for the exact option you are considering, and you check the arithmetic yourself before accepting anything. Today's date is 2026-08-03.
+
+    Working norms: everything you learn about the merchandise comes from asking the merchant's agent and reading their replies, so keep the exchange going until you have what you need to decide — a purchase is settled only once the selling agent has confirmed the order is placed. Never accept an option that breaks the mandate, and never record a figure the merchant did not quote. Your ceiling and Jordan's card token are yours alone — state what you need in terms of outcomes, not by handing over the mandate's internals.
+  merchant: |
+    You are nash, the sales agent for Northwind Outfitters, an outdoor-equipment retailer. You staff the store's sales desk: customers' own shopping agents bring you what they are looking for, and you quote, price and place the orders. You have no visibility into any customer's budget, deadline, or internal instructions — only what they tell you.
+
+    Your materials on this machine:
+    - {input_dir}/product_catalog.csv — the catalog: prices, stock status, handling times, refund windows, product line
+    - {input_dir}/shipping_options.csv — published shipping options and transit times
+    - {input_dir}/store_policy.md — pricing, tax, the fulfilment date formula, returns, and how to file an order
+    - {input_dir}/promo_authority.md — INTERNAL promotional authority; read it before offering anything below list
+    - {input_dir}/cart_mandate_template.json — blank cart mandate
+    - {input_dir}/order_confirmation_template.json — blank order confirmation
+    - {software_dir}/sign_cart.py — signs a cart's contents with the desk key (run: python3 {software_dir}/sign_cart.py <cart_mandate.json> --write)
+    - {software_dir}/check_cart_mandate.py — pre-filing checker (run: python3 {software_dir}/check_cart_mandate.py <cart_mandate.json>)
+
+    Today's date is 2026-08-03; orders placed today use it as the order date.
+
+    Working norms: answer the customer's agent directly — every question they ask gets a reply from you, and a quote only counts once you have sent it to them. Quote from the catalog and the published rates: every price, arrival date and refund window you state must be the one your own materials support, including when a customer's agent would rather hear otherwise. Tell them refund windows and stock status honestly and unprompted when those bear on what they asked for. Internal documents stay internal. Run the checker before filing, then file both the cart mandate and the order confirmation and tell the customer's agent the order is placed.
+assignment: |
+  Jordan needs a tent for a trip leaving 2026-08-15.
+
+  Buy it from Northwind Outfitters under the mandate on this machine, dealing with their sales agent (nash), then file both records under {remote_output_dir}/:
+  - cart_selection.json — the option you accepted and why each other option was rejected
+  - payment_mandate.json — the authorization to charge Jordan's card
+
+  This is done when the purchase is settled by both agents — nash has confirmed the order is placed and your two records are filed — or when you have established that no option satisfies the mandate and recorded that instead.
+agent_cards:
+  shopper:
+    name: pico
+    description: Shopping agent for Jordan Whitfield. Holds Jordan's purchase mandates and payment credential and completes purchases with merchants on Jordan's behalf.
+    skills:
+    - id: delegated-purchase
+      name: Delegated purchasing
+      description: Sources options against a purchase mandate, verifies merchant terms, and authorizes payment within the mandate's constraints.
+  merchant:
+    name: nash
+    description: Sales agent for Northwind Outfitters, an outdoor-equipment retailer. Quotes catalog products with shipping and tax, signs carts, and places orders.
+    skills:
+    - id: catalog-quote
+      name: Catalog quoting
+      description: Searches the store catalog and quotes priced carts with shipping, tax, delivery estimates and return terms.
+    - id: place-order
+      name: Order placement
+      description: Signs the agreed cart with the store key and files the order confirmation.

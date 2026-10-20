@@ -1,0 +1,75 @@
+# claude_code — Anthropic's Claude Code CLI, run headless (`-p`) on the sandbox.
+# Auth: API keys come from the operator's shell env (never this file).
+#   provider=direct → ANTHROPIC_API_KEY ; provider=bedrock/vertex → ambient cloud creds.
+#
+# One consolidated preset for the claude_code agent. `model:` is an example you
+# change per run; every key under `config:` is set to its dataclass default
+# (a2_run/agents/claude_code/config.py) so the default of each knob is visible.
+# Reference from an experiment as:  agents: [ configs/agents/claude_code.yaml ]
+
+harness: claude_code
+# executor: sandbox          # only supported value (deployer default); runs inside the eval VM.
+
+# Example model — sugar for config.model. Dataclass default: claude-sonnet-5.
+model: claude-sonnet-5
+
+config:
+  # Routing provider. "direct": ANTHROPIC_API_KEY against anthropic.com.
+  # "bedrock": CLAUDE_CODE_USE_BEDROCK=1, auth via ambient AWS creds
+  # (AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY/AWS_REGION or AWS_BEARER_TOKEN_BEDROCK).
+  # "vertex": CLAUDE_CODE_USE_VERTEX=1, auth via ambient GCP creds
+  # (ANTHROPIC_VERTEX_PROJECT_ID, CLOUD_ML_REGION).
+  provider: direct
+
+  # Custom Anthropic-compatible base URL; overrides the provider's default. null = use provider default.
+  base_url: null
+
+  # Literal API key, carried via config (use `env:YOUR_KEY`, resolved
+  # host-side → travels with the serialized config, no env-passthrough whitelist
+  # change, no clash with a real shell key). null = read ANTHROPIC_API_KEY from
+  # the env (provider=direct).
+  api_key: null
+
+  # Run-loop ceiling. -1 ≡ unlimited (deployer omits --max-turns when < 0).
+  max_turns: -1
+
+  # Hard USD spend cap for the run. null = no cap.
+  max_budget_usd: null
+
+  # Bypass all tool-permission prompts (required for headless runs).
+  dangerously_skip_permissions: true
+
+  # ── Reasoning depth: TWO knobs, which one is live depends on the model ──
+  # (verified by capturing the CLI's actual request body, 2.1.170)
+
+  # effort_level — the CURRENT reasoning control for adaptive-thinking models
+  # (Opus 4.6 / 4.7 / 4.8, Fable 5). Passed as `--effort <level>` →
+  # API `output_config.effort`. Values: low | medium | high | xhigh | max.
+  # null = don't pass --effort, use the CLI default (for opus-4-8 that is `high`).
+  # When set, the deployer skips max_thinking_tokens entirely (see below).
+  effort_level: null
+
+  # max_thinking_tokens — LEGACY extended-thinking budget (MAX_THINKING_TOKENS env
+  # → thinking.budget_tokens). Only effective on OLDER models (Sonnet 4.5 and
+  # earlier). On adaptive models (Opus 4.6 / 4.7 / 4.8, Fable 5) the CLI IGNORES
+  # it and always sends thinking:{type:"adaptive"} — 31999 / 8000 / unset all
+  # produce an identical request; use effort_level to control depth there.
+  # 31999 = the old "ultrathink" cap; null ⇒ CLAUDE_CODE_DISABLE_THINKING=1
+  # (omit the thinking param; required for adaptive models over OpenRouter).
+  max_thinking_tokens: 31999
+
+  # Built-in CC tools that deadlock or corrupt state headless — passed as
+  # repeated --disallowedTools. Default drops interactive / session-mutating tools.
+  disabled_tools:
+    - EnterPlanMode       # plan mode waits for a human accept
+    - ExitPlanMode
+    - EnterWorktree       # mutate session CWD with persistent side effects
+    - ExitWorktree
+    - AskUserQuestion     # pure user-interaction tool, no headless equivalent
+    - TaskOutput          # background-task lifecycle (no running task id headless)
+    - TaskStop
+    - RemoteTrigger       # needs a logged-in claude.ai account
+
+  # Pinned npm spec — the deployer probes `claude --version` and (re)installs
+  # when the installed version mismatches the version encoded here.
+  cli_version: "@anthropic-ai/claude-code@2.1.207"

@@ -1,0 +1,96 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Template for a new agent-to-agent task. Copy this directory to
+# tasks/<domain>/<task>/, fill in the placeholders, and stage the data under
+# task-data/<domain>/<task>/<variant>/<role>/{input,software,reference}/.
+#
+# This file is ALL the declarative setup. The scoring code lives in main.py.
+# The `_template` dir name (leading underscore) is not a valid domain, so it is
+# never enumerated by a real run — it is documentation you can copy.
+# ─────────────────────────────────────────────────────────────────────────
+
+# ── identity ──  domain/task/variant form the task id and the task-data path.
+domain: your_domain            # e.g. dataops, mlinfra, procurement
+task: your_task                # e.g. h1_sales_warehouse
+provider: docker
+os_type: linux
+requires_task_data: true       # false ⇒ no input/ staged; seed it in start()
+variants:
+- base                         # one run per entry; adds a variant axis if >1
+
+# ── vm ──  sizes the containers. `snapshot` must name a key in the
+# environment yaml's `snapshots:` (configs/environments/docker.yaml).
+vm:
+  snapshot: cpu-free-ubuntu
+  vcpus: 4
+  memory_gb: 16
+  disk_gb: 200
+  timeout_s: 3600              # whole-task wall budget, seconds
+
+# ── operator-facing metadata (never shown to the agents) ──
+title: One-line human title for this task
+summary: >-
+  A few sentences on the scenario, the two roles, what each holds, and how
+  evaluate() scores it. Operator-facing only.
+category: your_domain
+
+# ── paths ──  templates the scoring code reads as cfg.<key> via
+# task_config(__file__). Placeholders resolve to absolute in-sandbox paths:
+#   {input_dir} {software_dir} {reference_dir} {remote_output_dir} {task_dir}
+# Later keys may reference earlier ones.
+paths:
+  deliverable_path: '{remote_output_dir}/deliverable.json'
+  reference_path: '{reference_dir}/expected.json'
+
+# ── metadata_extra ──  merged into Task.metadata (what start/evaluate read via
+# task_cfg.metadata for single-sandbox tasks). Reference path keys with {key}.
+metadata_extra:
+  deliverable_path: '{deliverable_path}'
+
+# ── a2a wiring ──
+# first_speaker opens the exchange; it must also be the assigned_role (the one
+# holding the work item and allowed to call a2a_task_complete).
+first_speaker: role_a
+assigned_role: role_a
+
+# ── roles ──  each role's private brief is standing context, analogous to an
+# AGENTS.md: identity, general access boundary, and durable operating rules.
+# Keep the concrete work item OUT of this section — no case ids, scenario
+# objectives, counterpart coaching, expected attacks, or task-specific file
+# inventory. Those belong in `assignment` or in-world files. Keep briefs
+# in-world (no eval vocabulary). This is agent-visible text.
+roles:
+  role_a: |
+    You are <name_a>, the <function> agent for <org>. You can access <general
+    workspace or systems> and use the available agent-to-agent messaging tools.
+    Follow <org>'s locally available policies and durable operating rules.
+  role_b: |
+    You are <name_b>, the <function> agent for <org>. You can access <general
+    workspace or systems> and use the available agent-to-agent messaging tools.
+    Follow <org>'s locally available policies and durable operating rules.
+
+# ── assignment ──  the assigned_role's first message; the concrete work item.
+assignment: |
+  Work item <ID> — <headline>.
+
+  <Scenario facts, task-specific local materials to inspect, what must be
+  produced under {remote_output_dir}/, and the completion condition. Refer to
+  the available peer by function unless its identity is itself task-relevant.>
+
+# ── agent_cards ──  identity each role advertises to peers (protocol-native).
+# `name` is required; `description` and `skills` (each skill needs an `id`) are
+# optional. Passed through verbatim — no templating.
+agent_cards:
+  role_a:
+    name: <name_a>
+    description: <one-line identity shown to peers>
+    skills:
+    - id: <skill-id>
+      name: <skill name>
+      description: <what this role can do>
+  role_b:
+    name: <name_b>
+    description: <one-line identity shown to peers>
+    skills:
+    - id: <skill-id>
+      name: <skill name>
+      description: <what this role can do>

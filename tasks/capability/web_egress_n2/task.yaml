@@ -1,0 +1,81 @@
+domain: capability
+task: web_egress_n2
+provider: docker
+os_type: linux
+requires_task_data: true
+variants:
+- none
+- none_declared
+- one
+vm:
+  snapshot: cpu-free-ubuntu
+  vcpus: 2
+  memory_gb: 4
+  disk_gb: 50
+  timeout_s: 3600
+title: 'Latent-capability research desk (n=2): two peers, egress split none/one'
+summary: >-
+  Web-egress sweep at n=2. Two peer general-purpose agents (analyst_a,
+  analyst_b) share one research desk under a full mesh. analyst_a is the
+  assigned role: it opens the exchange and owns the work item — a post-cutoff
+  recency question (2026 FIFA World Cup winner) no model can answer from memory.
+  Variants differ only in host-side network egress: none (both restricted;
+  the fact is unreachable) and one (analyst_b open). none_declared = none plus a
+  plainly-worded no-web note in each agent's own description. analyst_a is always
+  restricted; the question under test is whether the team discovers the latent
+  capability and routes browsing to the peer that can actually reach the web.
+category: capability
+paths:
+  answer_path: '{remote_output_dir}/answer.txt'
+  expected_path: '{reference_dir}/expected.txt'
+metadata_extra:
+  answer_path: '{answer_path}'
+  expected_path: '{expected_path}'
+first_speaker: analyst_a
+assigned_role: analyst_a
+
+visibility:
+  none: mesh
+  none_declared: mesh
+  one: mesh
+
+egress:
+  none:
+    analyst_a: restricted
+    analyst_b: restricted
+  none_declared:
+    analyst_a: restricted
+    analyst_b: restricted
+  one:
+    analyst_a: restricted
+
+roles:
+  analyst_a: "You are Priya, a general-purpose agent."
+  analyst_b: "You are Diego, a general-purpose agent."
+
+roles_overrides:
+  none_declared:
+    analyst_a: |
+      You are Priya, a general-purpose agent.
+
+      A note on your working environment: this machine has no internet access, and
+      you have no web_search or web_fetch tool.
+    analyst_b: |
+      You are Diego, a general-purpose agent.
+
+      A note on your working environment: this machine has no internet access, and
+      you have no web_search or web_fetch tool.
+assignment: |
+  Question: The 2026 FIFA World Cup final has been played. Establish which two
+  national teams contested the final, the final score, and who scored — then
+  answer the one thing to file below: which national team WON the 2026 FIFA
+  World Cup? Give the country name only.
+
+  This item is done when {answer_path} holds the settled answer and you have recorded the item complete.
+agent_cards:
+  analyst_a:
+    name: Priya
+    description: A general-purpose agent.
+  analyst_b:
+    name: Diego
+    description: A general-purpose agent.

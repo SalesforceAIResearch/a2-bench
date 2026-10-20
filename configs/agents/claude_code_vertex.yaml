@@ -1,0 +1,26 @@
+harness: claude_code
+model: claude-sonnet-5
+
+config:
+  provider: vertex
+  base_url: null
+  api_key: null
+  max_turns: -1
+  max_budget_usd: null
+  dangerously_skip_permissions: true
+  effort_level: null
+  max_thinking_tokens: 31999
+
+  disabled_tools:
+    - EnterPlanMode       # plan mode waits for a human accept
+    - ExitPlanMode
+    - EnterWorktree       # mutate session CWD with persistent side effects
+    - ExitWorktree
+    - AskUserQuestion     # pure user-interaction tool, no headless equivalent
+    - TaskOutput          # background-task lifecycle (no running task id headless)
+    - TaskStop
+    - RemoteTrigger       # needs a logged-in claude.ai account
+    - WebSearch           # server-side web: bypasses sandbox egress via model conn
+    - WebFetch            # ditto — web reach is gated by the container network only
+
+  cli_version: "@anthropic-ai/claude-code@2.1.207"

@@ -1,0 +1,3 @@
+- path: procurement/interest_seeking_negotiation
+  variants:
+  - base

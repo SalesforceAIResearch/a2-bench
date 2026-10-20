@@ -1,0 +1,23 @@
+# dummy_a2a — scripted no-LLM responder for a2a (pair) smoke tests.
+#
+# Each exchange it acks the message it received (proving the hub shuttle
+# works) or replays `a2a_replies` in order, and after `a2a_end_after` sends
+# it POSTs /task_complete to its hub (proving host-side end detection).
+# Pair it with itself to exercise the whole pair lifecycle token-free:
+#
+#   agents:
+#     asker:  configs/agents/dummy_a2a.yaml
+#     oracle: configs/agents/dummy_a2a.yaml
+
+harness: dummy
+executor: local     # runs on the host, work_dir = host artifacts dir
+model: none
+
+config:
+  # Scripted replies, cycled by turn index. Empty ⇒ ack quoting the
+  # received message (best for verifying the relay end-to-end).
+  a2a_replies: []
+
+  # Mark the task complete after this many of MY sends (0 = never; the run
+  # then stops on the experiment's a2a.max_messages).
+  a2a_end_after: 2

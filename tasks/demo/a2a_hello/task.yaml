@@ -1,0 +1,40 @@
+domain: demo
+task: a2a_hello
+provider: docker
+os_type: linux
+requires_task_data: true
+variants:
+- base
+vm:
+  snapshot: cpu-free-ubuntu
+  vcpus: 4
+  memory_gb: 16
+  disk_gb: 200
+  timeout_s: 1800
+title: 'Demo: a2a code-word relay (two agents)'
+summary: 'Minimal agent-to-agent demo. Per-role task data is staged from the host: the code word into the oracle''s sandbox, the expected answer into the asker''s reference at eval time. The oracle agent holds the code word; the asker must obtain it through conversation and write it to its own output dir, then complete the task. evaluate() exact-matches the asker''s answer against the staged reference. Exercises the pair lifecycle: two containers, host-relayed turns, per-role data staging, per-role trajectories.'
+category: demo
+paths:
+  codeword_path: '{input_dir}/codeword.txt'
+  answer_path: '{remote_output_dir}/answer.txt'
+  expected_path: '{reference_dir}/expected.txt'
+metadata_extra:
+  codeword_path: '{codeword_path}'
+  answer_path: '{answer_path}'
+  expected_path: '{expected_path}'
+first_speaker: asker
+assigned_role: asker
+roles:
+  asker: |
+    You are courier, a records-retrieval agent. You have no local copy of the release code word — the record-keeping agent holds it; request it when a work item needs it.
+  oracle: |
+    You are registry, the record-keeping agent for this team. The current code word is stored at {codeword_path} on this machine. When it is requested, read the file and reply with the code word verbatim. Answer nothing beyond what is asked.
+assignment: |
+  Work item: obtain the current release code word from the registry agent and file it. Write EXACTLY the code word (one line, nothing else) to {answer_path} on this machine, then mark this item complete.
+agent_cards:
+  asker:
+    name: courier
+    description: Records-retrieval agent; fetches and files records on request.
+  oracle:
+    name: registry
+    description: Record-keeping agent; holds the team's current reference records, including the release code word.

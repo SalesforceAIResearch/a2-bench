@@ -1,0 +1,2 @@
+# a2a smoke test only — two agents, code-word relay
+demo/a2a_hello
